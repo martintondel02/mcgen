@@ -1,0 +1,12 @@
+[package]
+name = "mcgen-core"
+description = "Vanilla-faithful Minecraft 1.21.1 worldgen primitives (noise, density functions, terrain fill) in pure Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde_json = "1"
+rayon = "1"
+# Vanilla derives per-octave seeds by MD5-hashing the string "octave_N".
+md-5 = "0.10"

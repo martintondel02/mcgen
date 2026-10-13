@@ -1,0 +1,22 @@
+# ---- Downloaded toolchains and installers -------------------------------------
+# No JDK, no NeoForge installer, no Minecraft server jar is ever committed. All of
+# it is fetched by scripts/fetch-jdk.sh and scripts/setup-server.sh.
+/.tools/
+/.cache/
+/server/
+
+# ---- Build output -------------------------------------------------------------
+/build/
+/rust/target/
+java/harness/out/
+tools/oracle/out/
+tools/javaref/
+
+# ---- Run artefacts ------------------------------------------------------------
+*.log
+/logs/
+
+# ---- Oracle scratch -----------------------------------------------------------
+# Debug logs and probe dumps from oracle runs. Regenerable; never needed to build.
+tools/oracle/logs/
+tools/oracle/cases/*_pending.jsonl

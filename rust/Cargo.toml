@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["mcgen-core", "mcgen-ffi"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/local/minecraft-server-in-rust"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "unwind"   # must be unwind: the FFI layer catches panics instead of aborting the JVM

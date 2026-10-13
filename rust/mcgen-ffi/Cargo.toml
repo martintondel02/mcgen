@@ -1,0 +1,16 @@
+[package]
+name = "mcgen-ffi"
+description = "C ABI for mcgen-core, safe to call from the JVM (FFM or JNI)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "mcgen"
+# cdylib: loaded directly by the FFM harness (Java 21 --enable-preview).
+# staticlib: linked into the JNI shim that ships inside the NeoForge mod,
+#            which must not require preview flags.
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+mcgen-core = { path = "../mcgen-core" }
