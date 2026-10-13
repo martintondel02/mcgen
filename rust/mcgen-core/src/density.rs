@@ -305,7 +305,7 @@ thread_local! {
     /// `(node pointer, corners)` pairs and scanned them, which walked six cache lines per lookup
     /// on the hottest path in the project; a slot index is a plain array subscript.
     static CORNERS: std::cell::RefCell<(Vec<[f64; 8]>, bool)> =
-        std::cell::RefCell::new((Vec::new(), false));
+        const { std::cell::RefCell::new((Vec::new(), false)) };
 
     /// The quart-corner value of each `flat_cache` / `cache_2d` node, for the chunk being walked.
     ///
@@ -396,10 +396,30 @@ pub fn tally(self_: &DensityFunction) -> usize {
 
 /// Names matching [`tally`].
 pub const TALLY_NAMES: [&str; 24] = [
-    "Constant", "YClampedGradient", "Noise", "ShiftedNoise", "Shift", "Add", "Mul", "Min",
-    "Max", "Clamp", "AbsWrapped", "Square", "Cube", "HalfNegative", "QuarterNegative",
-    "Squeeze", "Invert", "Spline", "OldBlendedNoise", "WeirdScaledSampler", "RangeChoice",
-    "PassThrough", "QuartSnapped", "Interpolated",
+    "Constant",
+    "YClampedGradient",
+    "Noise",
+    "ShiftedNoise",
+    "Shift",
+    "Add",
+    "Mul",
+    "Min",
+    "Max",
+    "Clamp",
+    "AbsWrapped",
+    "Square",
+    "Cube",
+    "HalfNegative",
+    "QuarterNegative",
+    "Squeeze",
+    "Invert",
+    "Spline",
+    "OldBlendedNoise",
+    "WeirdScaledSampler",
+    "RangeChoice",
+    "PassThrough",
+    "QuartSnapped",
+    "Interpolated",
 ];
 
 /// Read and reset the node-visit counter.
@@ -527,7 +547,10 @@ pub enum DensityFunction {
     /// `slot` indexes the current cell's corner cache. It is assigned at parse time so the lookup
     /// is an array index rather than a scan over `(node, corners)` pairs; that scan, plus the four
     /// thread-local accesses around it, was the single hottest thing in the evaluator.
-    Interpolated { input: Box<Self>, slot: u32 },
+    Interpolated {
+        input: Box<Self>,
+        slot: u32,
+    },
 }
 
 /// Builds a [`DensityFunction`] from Minecraft's JSON, and remembers what it needed.
@@ -535,13 +558,20 @@ pub enum DensityFunction {
 /// The graph is data-driven, so the builder also collects the things the encoding leaves
 /// out: which noises the graph references (in the order it meets them) and the clamp bounds,
 /// which vanilla recomputes from a static range rather than storing.
+/// One occurrence of a noise in a graph.
+///
+/// `(first_octave, amplitudes, registry name)` — everything needed to rebuild the noise from the
+/// world seed, plus the name it was registered under. A noise can appear many times, and two
+/// registries can share parameters, so the name is the only thing that tells them apart.
+pub type NoiseOccurrence = (i32, Vec<u64>, String);
+
 pub struct DensityBuilder {
     /// Every noise the graph references, in first-seen order.
     noise_specs: Vec<NoiseSpec>,
     /// Deduplication for the above, keyed by a canonical description of the spec.
     noise_index: BTreeMap<String, usize>,
     /// One `(first_octave, amplitudes, registry name)` per noise occurrence, and a cursor.
-    occurrences: Option<(Vec<(i32, Vec<u64>, String)>, usize)>,
+    occurrences: Option<(Vec<NoiseOccurrence>, usize)>,
     /// The names taken, in order, so the association can be checked occurrence by occurrence.
     consumed: Vec<String>,
     /// Clamp bounds in post-order, and a cursor.
@@ -604,7 +634,7 @@ impl DensityBuilder {
     /// Every subsequent noise descriptor consumes the next entry and must agree with it
     /// on the parameters, so a traversal-order mismatch fails loudly instead of
     /// silently attaching the wrong noise.
-    pub fn set_occurrences(&mut self, occurrences: Vec<(i32, Vec<u64>, String)>) {
+    pub fn set_occurrences(&mut self, occurrences: Vec<NoiseOccurrence>) {
         self.occurrences = Some((occurrences, 0));
     }
 
@@ -932,7 +962,9 @@ impl DensityBuilder {
             // asked for, and the subtree below it is evaluated 25 times per chunk. Both halves
             // matter: reading the corner is what the chunk does, and memoising it is what makes
             // it fast.
-            "flat_cache" | "cache_2d" => DensityFunction::QuartSnapped(Box::new(self.parse(arg("argument")?)?)),
+            "flat_cache" | "cache_2d" => {
+                DensityFunction::QuartSnapped(Box::new(self.parse(arg("argument")?)?))
+            }
 
             "cache_once" | "cache_all_in_cell" | "blend_density" => {
                 DensityFunction::PassThrough(Box::new(self.parse(arg("argument")?)?))
@@ -963,10 +995,12 @@ impl DensityBuilder {
         let body = v.get("spline").unwrap_or(v);
         let sp = body.as_object().ok_or(DensityError::NotAnObject)?;
 
-        let coordinate = Box::new(self.parse(
-            sp.get("coordinate")
-                .ok_or(DensityError::MissingField("coordinate"))?,
-        )?);
+        let coordinate = Box::new(
+            self.parse(
+                sp.get("coordinate")
+                    .ok_or(DensityError::MissingField("coordinate"))?,
+            )?,
+        );
 
         let points = sp
             .get("points")
@@ -994,10 +1028,7 @@ impl DensityBuilder {
 
             if let Some(n) = value.as_f64() {
                 values.push(SplineValue::Constant(n as f32));
-                let d = po
-                    .get("derivative")
-                    .and_then(Value::as_f64)
-                    .unwrap_or(0.0);
+                let d = po.get("derivative").and_then(Value::as_f64).unwrap_or(0.0);
                 derivatives.push(d as f32);
             } else {
                 // A nested spline; vanilla gives these no derivative.
@@ -1041,7 +1072,11 @@ impl DensityFunction {
     pub fn compute_chunked(&self, noises: &[NormalNoise], x: f64, y: f64, z: f64) -> f64 {
         // Empty the corner cache when the cell changes. All `interpolated` nodes share the same
         // 4 x 8 x 4 grid, so one check here covers every one of them.
-        let cell = ((x / 4.0).floor() as i64, (y / 8.0).floor() as i64, (z / 4.0).floor() as i64);
+        let cell = (
+            (x / 4.0).floor() as i64,
+            (y / 8.0).floor() as i64,
+            (z / 4.0).floor() as i64,
+        );
         if CORNER_CELL.with(std::cell::Cell::get) != cell {
             CORNER_CELL.with(|c| c.set(cell));
             CORNERS.with(|c| c.borrow_mut().1 = false);
@@ -1121,11 +1156,7 @@ impl DensityFunction {
                 let sx = shift_x.compute(noises, x, y, z);
                 let sy = shift_y.compute(noises, x, y, z);
                 let sz = shift_z.compute(noises, x, y, z);
-                noises[*noise].get(
-                    x * xz_scale + sx,
-                    y * y_scale + sy,
-                    z * xz_scale + sz,
-                )
+                noises[*noise].get(x * xz_scale + sx, y * y_scale + sy, z * xz_scale + sz)
             }
             Self::Shift { kind, noise } => {
                 // `DensityFunctions.ShiftNoise.compute(x,y,z)` is
@@ -1301,9 +1332,7 @@ impl DensityFunction {
                     c.0[slot] = v;
                     c.1 = true;
                 });
-                crate::math::lerp3(
-                    fx, fy, fz, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7],
-                )
+                crate::math::lerp3(fx, fy, fz, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7])
             }
         }
     }
@@ -1358,7 +1387,10 @@ mod tests {
         // At y below the gradient start, the gradient term is fully +1.
         let low = f.compute(&noises, 0.0, -100.0, 0.0);
         let high = f.compute(&noises, 0.0, 400.0, 0.0);
-        assert!(low > high, "terrain should thin out with height: {low} vs {high}");
+        assert!(
+            low > high,
+            "terrain should thin out with height: {low} vs {high}"
+        );
         assert!(low.is_finite() && high.is_finite());
     }
 
@@ -1383,8 +1415,10 @@ mod tests {
     fn cache_wrappers_are_transparent() {
         let mut b = DensityBuilder::new();
         let wrapped = b
-            .parse_str(r#"{ "type":"minecraft:flat_cache",
-                            "argument": { "type":"minecraft:constant", "argument": 3.5 } }"#)
+            .parse_str(
+                r#"{ "type":"minecraft:flat_cache",
+                            "argument": { "type":"minecraft:constant", "argument": 3.5 } }"#,
+            )
             .unwrap();
         assert!((wrapped.compute(&[], 1.0, 2.0, 3.0) - 3.5).abs() < 1e-12);
     }
@@ -1472,7 +1506,7 @@ mod tests {
         // Below the first point: value + derivative * (coord - location).
         let below = b.parse_str(&make(-1.0)).unwrap();
         let v = below.compute(&[], 0.0, 0.0, 0.0);
-        assert!((v - (1.0 + 2.0 * -1.0)).abs() < 1e-6, "got {v}");
+        assert!((v - (1.0 + -2.0)).abs() < 1e-6, "got {v}");
 
         // Above the last point.
         let above = b.parse_str(&make(2.0)).unwrap();
@@ -1495,7 +1529,10 @@ mod tests {
         let mut b = DensityBuilder::new();
         let f = b.parse_str(json).unwrap();
         let v = f.compute(&[], 0.0, 0.0, 0.0);
-        assert!((v - 7.0).abs() < 1e-6, "expected the nested spline value, got {v}");
+        assert!(
+            (v - 7.0).abs() < 1e-6,
+            "expected the nested spline value, got {v}"
+        );
     }
 
     #[test]

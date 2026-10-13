@@ -81,7 +81,10 @@ impl CellGrid {
     /// makes the layout testable without an oracle.
     #[must_use]
     pub fn interpolate(&self, x: usize, y: usize, z: usize) -> f64 {
-        assert!(x < CHUNK_SIZE && z < CHUNK_SIZE && y < HEIGHT, "block position out of chunk: ({x},{y},{z})");
+        assert!(
+            x < CHUNK_SIZE && z < CHUNK_SIZE && y < HEIGHT,
+            "block position out of chunk: ({x},{y},{z})"
+        );
 
         let cx = x / CELL_WIDTH;
         let cy = y / CELL_HEIGHT;
@@ -225,7 +228,6 @@ impl WorldGen<'_> {
                 }
             }
         }
-
     }
 
     /// Fill one chunk by coarse-sampling the *whole* density on the cell grid.
@@ -491,7 +493,7 @@ mod tests {
 
         let mut serial = vec![0u8; (n * n) as usize * BLOCKS_PER_CHUNK];
         let mut single = vec![0u8; BLOCKS_PER_CHUNK];
-        for i in 0..(n * n) as i32 {
+        for i in 0..(n * n) {
             // Must match what fill_region uses, which is now the chunked path.
             wg.fill_chunk_chunked(i % n, i / n, &mut single);
             let off = i as usize * BLOCKS_PER_CHUNK;

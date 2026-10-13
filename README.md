@@ -1,5 +1,7 @@
 # mcgen — a Rust world-generation engine for NeoForge
 
+[![CI](https://github.com/martintondel02/mcgen/actions/workflows/ci.yml/badge.svg)](https://github.com/martintondel02/mcgen/actions/workflows/ci.yml)
+
 A Rust implementation of Minecraft's world-generation **density layer**, running inside a
 real NeoForge 21.1.257 (Minecraft 1.21.1) server, driven by the `/mcgen` command tree.
 

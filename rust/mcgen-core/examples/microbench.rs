@@ -73,28 +73,52 @@ fn main() {
     let iters = 20_000_000u64;
 
     let c20 = chain(20);
-    let ns = time(iters, |i| c20.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0));
-    println!("chain of 20 Adds : {ns:7.1} ns/call = {:.2} ns/node", ns / 21.0);
+    let ns = time(iters, |i| {
+        c20.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0)
+    });
+    println!(
+        "chain of 20 Adds : {ns:7.1} ns/call = {:.2} ns/node",
+        ns / 21.0
+    );
 
     let c60 = chain(60);
-    let ns = time(iters, |i| c60.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0));
-    println!("chain of 60 Adds : {ns:7.1} ns/call = {:.2} ns/node", ns / 61.0);
+    let ns = time(iters, |i| {
+        c60.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0)
+    });
+    println!(
+        "chain of 60 Adds : {ns:7.1} ns/call = {:.2} ns/node",
+        ns / 61.0
+    );
 
     let n = noise_chain(8);
-    let ns = time(iters, |i| n.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0));
-    println!("8 noises + 8 Adds: {ns:7.1} ns/call = {:.2} ns/node", ns / 17.0);
+    let ns = time(iters, |i| {
+        n.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0)
+    });
+    println!(
+        "8 noises + 8 Adds: {ns:7.1} ns/call = {:.2} ns/node",
+        ns / 17.0
+    );
 
     let ns = time(iters, |i| noises[0].get(1.0 + i as f64 * 1e-6, 2.0, 3.0));
     println!("NormalNoise::get : {ns:7.1} ns/call");
 
     // A leaf with no children, to price the dispatch alone.
     let k = DensityFunction::Constant(1.0);
-    let ns = time(iters, |i| k.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0));
+    let ns = time(iters, |i| {
+        k.compute(&noises, 1.0 + i as f64 * 1e-6, 2.0, 3.0)
+    });
     println!("Constant leaf    : {ns:7.1} ns/call");
 
-    let p = PerlinNoise::create_legacy(&mut XoroshiroRandomSource::new(0), -7, &[1.0, 1.0, 1.0, 1.0]);
+    let p = PerlinNoise::create_legacy(
+        &mut XoroshiroRandomSource::new(0),
+        -7,
+        &[1.0, 1.0, 1.0, 1.0],
+    );
     let ns = time(iters, |i| p.get_value(1.0 + i as f64 * 1e-6, 2.0, 3.0));
-    println!("PerlinNoise (4 octaves): {ns:7.1} ns/call = {:.1} ns/octave", ns / 4.0);
+    println!(
+        "PerlinNoise (4 octaves): {ns:7.1} ns/call = {:.1} ns/octave",
+        ns / 4.0
+    );
 
     // One octave on its own, to price the gradient noise rather than the octave loop.
     let octave = p.octave_noise(0).expect("octave 0");

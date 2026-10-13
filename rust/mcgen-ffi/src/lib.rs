@@ -18,10 +18,10 @@ use std::ffi::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Mutex;
 
+use mcgen_core::density::NoiseSpec;
 use mcgen_core::density::{DensityBuilder, DensityFunction};
 use mcgen_core::fnv1a_bytes;
 use mcgen_core::noise::NormalNoise;
-use mcgen_core::density::NoiseSpec;
 use mcgen_core::terrain::{WorldGen, BLOCKS_PER_CHUNK};
 
 /// Bump when the ABI changes shape. The Java side refuses to run on a mismatch.
@@ -93,8 +93,15 @@ pub extern "C" fn mcgen_abi_version() -> u32 {
 }
 
 /// Retrieve the message for the most recent failure.
+///
+/// # Safety
+/// `out` must be writable for `len` bytes, or null with `len == 0`.
+///
+/// This one was not marked `unsafe` for a long time, which is a genuine hole: a
+/// caller in safe Rust could have handed it a dangling pointer. Clippy's
+/// `not_unsafe_ptr_arg_deref` is denied in CI now, which is why it was found.
 #[no_mangle]
-pub extern "C" fn mcgen_last_error(out: *mut c_char, len: usize) -> i32 {
+pub unsafe extern "C" fn mcgen_last_error(out: *mut c_char, len: usize) -> i32 {
     guard("mcgen_last_error", || {
         let msg = LAST_ERROR
             .lock()
@@ -170,14 +177,18 @@ fn build_world(seed: u64) -> Result<McGenWorld, String> {
             "clamps" => {
                 let min = f64::from_bits(
                     u64::from_str_radix(
-                        parts.next().ok_or("fixture: clamp is missing its minimum")?,
+                        parts
+                            .next()
+                            .ok_or("fixture: clamp is missing its minimum")?,
                         16,
                     )
                     .map_err(|e| format!("fixture: bad clamp minimum: {e}"))?,
                 );
                 let max = f64::from_bits(
                     u64::from_str_radix(
-                        parts.next().ok_or("fixture: clamp is missing its maximum")?,
+                        parts
+                            .next()
+                            .ok_or("fixture: clamp is missing its maximum")?,
                         16,
                     )
                     .map_err(|e| format!("fixture: bad clamp maximum: {e}"))?,
@@ -220,7 +231,6 @@ fn build_world(seed: u64) -> Result<McGenWorld, String> {
         noise_names,
     })
 }
-
 
 /// Create a world. On success writes the handle to `*out`.
 ///
@@ -660,25 +670,21 @@ mod tests {
 
         let mut buf = vec![0u8; BLOCKS_PER_CHUNK];
         // Wrong length must be caught, not written past.
-        let rc = unsafe {
-            mcgen_world_fill_region(world, 0, 0, 4, buf.as_mut_ptr(), buf.len())
-        };
+        let rc = unsafe { mcgen_world_fill_region(world, 0, 0, 4, buf.as_mut_ptr(), buf.len()) };
         assert_eq!(rc, MCGEN_ERR_LEN);
 
         // Null world must be caught.
-        let rc = unsafe {
-            mcgen_world_fill_region(ptr::null(), 0, 0, 1, buf.as_mut_ptr(), buf.len())
-        };
+        let rc =
+            unsafe { mcgen_world_fill_region(ptr::null(), 0, 0, 1, buf.as_mut_ptr(), buf.len()) };
         assert_eq!(rc, MCGEN_ERR_NULL);
 
         // Non-positive chunk count must be caught.
-        let rc =
-            unsafe { mcgen_world_fill_region(world, 0, 0, 0, buf.as_mut_ptr(), buf.len()) };
+        let rc = unsafe { mcgen_world_fill_region(world, 0, 0, 0, buf.as_mut_ptr(), buf.len()) };
         assert_eq!(rc, MCGEN_ERR_LEN);
 
         // And an error message should be retrievable.
         let mut msg = vec![0i8; 256];
-        let n = mcgen_last_error(msg.as_mut_ptr(), msg.len());
+        let n = unsafe { mcgen_last_error(msg.as_mut_ptr(), msg.len()) };
         assert!(n > 0, "expected an error message");
 
         unsafe { mcgen_world_destroy(world) };

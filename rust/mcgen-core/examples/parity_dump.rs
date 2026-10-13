@@ -145,7 +145,10 @@ fn block_z(i: i32) -> i32 {
 /// parser consumes. Every node type that does not need a registry.
 fn density() {
     const CASES: [(&str, &str); 18] = [
-        ("constant", r#"{"type":"minecraft:constant","argument":1.5}"#),
+        (
+            "constant",
+            r#"{"type":"minecraft:constant","argument":1.5}"#,
+        ),
         (
             "y_clamped_gradient",
             r#"{"type":"minecraft:y_clamped_gradient","from_y":-64,"to_y":320,"from_value":2.0,"to_value":-3.0}"#,
@@ -222,7 +225,9 @@ fn density() {
 
     for (name, json) in CASES {
         let mut builder = DensityBuilder::new();
-        let f = builder.parse_str(json).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let f = builder
+            .parse_str(json)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
         for i in 0..SAMPLES {
             emit(
                 name,
@@ -257,11 +262,12 @@ fn density_json(path: &str) {
             .unwrap_or_else(|| panic!("expected name<TAB>json, got: {line}"));
 
         let mut builder = DensityBuilder::new();
-        let f = builder.parse_str(json).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let f = builder
+            .parse_str(json)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
         // The oracle initialises every noise holder with seed 0, so inline specs
         // resolve to the same instances here.
-        let noises: Vec<NormalNoise> =
-            builder.noise_specs().iter().map(NoiseSpec::build).collect();
+        let noises: Vec<NormalNoise> = builder.noise_specs().iter().map(NoiseSpec::build).collect();
 
         for i in 0..SAMPLES {
             emit(
@@ -378,8 +384,7 @@ fn density_router(path: &str) {
         let f = builder
             .parse_str(json)
             .unwrap_or_else(|e| panic!("{name}: {e}"));
-        let noises: Vec<NormalNoise> =
-            builder.noise_specs().iter().map(NoiseSpec::build).collect();
+        let noises: Vec<NormalNoise> = builder.noise_specs().iter().map(NoiseSpec::build).collect();
 
         for i in 0..SAMPLES {
             emit(
@@ -419,12 +424,10 @@ fn density_dense(path: &str) {
             .unwrap_or_else(|| panic!("expected name<TAB>json, got: {line}"));
 
         let mut builder = DensityBuilder::new();
-        let f = builder.parse_str(json).unwrap_or_else(|e| panic!("{name}: {e}"));
-        let noises: Vec<NormalNoise> = builder
-            .noise_specs()
-            .iter()
-            .map(NoiseSpec::build)
-            .collect();
+        let f = builder
+            .parse_str(json)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        let noises: Vec<NormalNoise> = builder.noise_specs().iter().map(NoiseSpec::build).collect();
 
         for i in 0..DENSE_SAMPLES {
             let x = f64::from(DENSE_X[(i % 6) as usize]);
@@ -456,7 +459,12 @@ fn math() {
 
         emit("math_lerp", 0, i, lerp(t, -1.5 + fi, 2.25 - fi));
         emit("math_smoothstep", 0, i, smoothstep(t));
-        emit("math_clamped_lerp", 0, i, clamped_lerp(-3.0 + fi, 5.0 - fi, t));
+        emit(
+            "math_clamped_lerp",
+            0,
+            i,
+            clamped_lerp(-3.0 + fi, 5.0 - fi, t),
+        );
         emit("math_wrap", 0, i, wrap(t * 4.0e7 - 2.0e7));
 
         let ax = fi * 0.037;
@@ -486,14 +494,14 @@ fn math() {
 ///
 /// Names are needed because the encoded JSON keeps only parameters, and distinct
 /// registries routinely share them.
-fn noise_names() -> std::collections::HashMap<String, Vec<(i32, Vec<u64>, String)>> {
+fn noise_names() -> std::collections::HashMap<String, Vec<mcgen_core::density::NoiseOccurrence>> {
     let path = std::env::var("MCGEN_NOISE_NAMES").unwrap_or_else(|_| {
         panic!("set MCGEN_NOISE_NAMES to the file written by `RouterOracle column`")
     });
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("could not read {path}: {e}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("could not read {path}: {e}"));
 
-    let mut map: std::collections::HashMap<String, Vec<(i32, Vec<u64>, String)>> =
+    let mut map: std::collections::HashMap<String, Vec<mcgen_core::density::NoiseOccurrence>> =
         std::collections::HashMap::new();
     for line in text.lines().filter(|l| !l.trim().is_empty()) {
         let mut parts = line.split(' ');
@@ -536,8 +544,8 @@ fn clamp_bounds() -> std::collections::HashMap<String, Vec<(f64, f64)>> {
     let Ok(path) = std::env::var("MCGEN_CLAMPS") else {
         return std::collections::HashMap::new();
     };
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("could not read {path}: {e}"));
+    let text =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("could not read {path}: {e}"));
     let mut map: std::collections::HashMap<String, Vec<(f64, f64)>> =
         std::collections::HashMap::new();
     for line in text.lines().filter(|l| !l.trim().is_empty()) {
@@ -553,7 +561,7 @@ fn clamp_bounds() -> std::collections::HashMap<String, Vec<(f64, f64)>> {
 fn build_seeded(
     route: &str,
     json: &str,
-    names: &std::collections::HashMap<String, Vec<(i32, Vec<u64>, String)>>,
+    names: &std::collections::HashMap<String, Vec<mcgen_core::density::NoiseOccurrence>>,
     clamps: &std::collections::HashMap<String, Vec<(f64, f64)>>,
 ) -> (mcgen_core::density::DensityFunction, Vec<NormalNoise>) {
     let mut builder = DensityBuilder::new();
@@ -587,8 +595,8 @@ fn column(part: ColumnPart) {
     let names = noise_names();
     let clamps = clamp_bounds();
 
-    let router_path = std::env::var("MCGEN_ROUTER_JSON")
-        .expect("set MCGEN_ROUTER_JSON to the router corpus");
+    let router_path =
+        std::env::var("MCGEN_ROUTER_JSON").expect("set MCGEN_ROUTER_JSON to the router corpus");
     let text = std::fs::read_to_string(&router_path)
         .unwrap_or_else(|e| panic!("could not read {router_path}: {e}"));
 
@@ -685,17 +693,15 @@ fn column(part: ColumnPart) {
         builder
             .parse_str(json_for("router_final_density"))
             .expect("final_density");
-        let mut index = 0;
         // Every occurrence, not just the first sight of each name: two registries that
         // share parameters are only distinguishable here.
-        for name in builder.consumed_occurrences() {
+        for (index, name) in builder.consumed_occurrences().iter().enumerate() {
             emit(
                 "fd_occ_order",
                 COLUMN_SEED as i64,
-                index,
+                index as i32,
                 f64::from(java_string_hash_code(name)),
             );
-            index += 1;
         }
     }
 
@@ -776,14 +782,13 @@ fn column(part: ColumnPart) {
         density: final_density,
         noises: final_noises,
     };
-    let grid = wg.sample_cells(0, 0);
+    let _grid = wg.sample_cells(0, 0);
 
     // Time the chunked evaluation on its own. This is the number to compare against a
     // generator: 98,304 block evaluations of the real router, one chunk's worth.
-    let timed_blocks = 16 * 16 * heights as usize;
+    let timed_blocks = 16 * 16 * heights;
 
     // The flattened evaluator must agree with the tree on every input, and be worth having.
-
 
     // Cell order, matching `fill_chunk_chunked`. With `z, x, y` order the corner caches are
     // emptied every eight blocks and the measurement describes something the fill never does.
@@ -860,7 +865,6 @@ fn column(part: ColumnPart) {
         visits as f64 / timed_blocks as f64,
         ns_per / (visits as f64 / timed_blocks as f64)
     );
-
 
     let mut column_index = 0;
     for lx in 0usize..16 {

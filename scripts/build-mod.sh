@@ -43,16 +43,14 @@ echo "==> output: $OUT"
 rm -rf "$OUT"
 mkdir -p "$OUT/classes"
 
-# Every library the server ships, minus sources/javadoc. Over-broad on purpose:
-# pinning the exact subset would be one more thing to get wrong, and javac only
-# reads what it is asked for.
-CP=""
-while IFS= read -r jar; do
-  case "$jar" in
-    *-sources.jar|*-javadoc.jar) continue ;;
-  esac
-  CP="${CP:+$CP:}$jar"
-done < <(find "$LIBS" -name '*.jar' | sort)
+# Every library the server ships, keeping the newest version of each artifact.
+# Over-broad on purpose: pinning the exact subset would be one more thing to get
+# wrong, and javac only reads what it is asked for. The dedupe is not optional —
+# this tree ships guava 20 and 32, and compiling against 20 produces classes that
+# fail at runtime against 32.
+# shellcheck source=scripts/lib-classpath.sh
+source "$ROOT/scripts/lib-classpath.sh"
+CP="$(mcgen_classpath "$LIBS")"
 if [[ -z "$CP" ]]; then
   echo "error: no jars under $LIBS" >&2
   exit 1

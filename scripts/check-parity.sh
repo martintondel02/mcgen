@@ -19,12 +19,18 @@ if [[ -z "$MCJAR" ]]; then
   exit 1
 fi
 
+# shellcheck source=scripts/lib-classpath.sh
+source "$ROOT/scripts/lib-classpath.sh"
+
 # NOTE: the vanilla jar ships obfuscated single-letter classes, including a
 # top-level `com.class`. If the intermediate `-unpacked`/`-slim` jars are on
 # the classpath, that class shadows the entire `com.*` package and javac
 # reports the bizarre error "cannot find symbol: variable mojang".
-CP="$MCJAR:$(find "$SERVER/libraries" -name '*.jar' \
-        -not -name '*-unpacked.jar' -not -name '*-slim.jar' | tr '\n' ':')"
+#
+# The classpath is built by `mcgen_classpath`, which keeps the newest version of
+# each artifact. That matters: this tree ships two guavas, and picking the wrong
+# one makes the oracle die with NoSuchMethodError on a different machine.
+CP="$MCJAR:$(mcgen_classpath "$SERVER/libraries" '*-unpacked.jar' '*-slim.jar')"
 KINDS=("${@:-improved_noise}")
 # `column` is in the list deliberately. It is the only check that walks all 256 columns of a
 # chunk and compares against vanilla's own `NoiseChunk`, and on the round it was added a change

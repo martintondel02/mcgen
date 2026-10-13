@@ -149,7 +149,14 @@ impl ImprovedNoise {
             smoothstep(relative_x),
             smoothstep(original_relative_y),
             smoothstep(relative_z),
-            d000, d100, d010, d110, d001, d101, d011, d111,
+            d000,
+            d100,
+            d010,
+            d110,
+            d001,
+            d101,
+            d011,
+            d111,
         )
     }
 
@@ -679,7 +686,10 @@ mod tests {
         for v in p.perms {
             seen[v as usize] = true;
         }
-        assert!(seen.iter().all(|&s| s), "table must contain every value once");
+        assert!(
+            seen.iter().all(|&s| s),
+            "table must contain every value once"
+        );
     }
 
     #[test]
@@ -825,7 +835,10 @@ mod tests {
         let perlin = PerlinNoise::create_legacy(&mut r, -3, &amps);
         assert!(perlin.octave_noise(0).is_some());
         assert!(perlin.octave_noise(3).is_some());
-        assert!(perlin.octave_noise(4).is_none(), "out of range must be None");
+        assert!(
+            perlin.octave_noise(4).is_none(),
+            "out of range must be None"
+        );
     }
 
     #[test]
