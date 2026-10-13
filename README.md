@@ -62,21 +62,28 @@ and what each one did.
 You need a **NeoForge 21.1.257 server for Minecraft 1.21.1** and a **64-bit Linux** host.
 Nothing else — no `--enable-preview`, no special JVM flags.
 
-1. Build the jar (or take one from a release):
+**Easiest:** take the two files from the
+[latest release](https://github.com/martintondel02/mcgen/releases/latest) and skip to
+step 2.
 
-   ```bash
-   git clone https://github.com/martintondel02/mcgen
-   cd mcgen
-   ./scripts/fetch-jdk.sh      # downloads a JDK 21 into .tools/
-   ./scripts/setup-server.sh   # installs NeoForge, builds the mod
-   ```
+**From source:**
 
-2. Copy two things into your server:
+```bash
+git clone https://github.com/martintondel02/mcgen
+cd mcgen
+./scripts/fetch-jdk.sh      # downloads a JDK 21 into .tools/
+./scripts/setup-server.sh   # installs NeoForge, builds the mod
+```
 
-   ```
-   build/mod/mcgen-0.2.0.jar   ->  <server>/mods/
-   build/mod/libmcgenjni.so    ->  <server>/mcgen/
-   ```
+Then copy two things into your server:
+
+```
+build/mod/mcgen-0.2.0.jar   ->  <server>/mods/
+build/mod/libmcgenjni.so    ->  <server>/mcgen/
+```
+
+The release binaries are built for x86-64 Linux with glibc 2.34 or newer. On anything
+else, build from source — it is two scripts.
 
    The native library is deliberately *not* inside the jar: a jar with an embedded `.so`
    cannot be loaded identically on every platform, and extracting a native library to a
