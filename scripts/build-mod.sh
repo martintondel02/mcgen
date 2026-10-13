@@ -64,8 +64,13 @@ echo "==> [2/5] compiling JNI shim"
 # Link the Rust *static* archive by full path. Using -lmcgen would let the
 # linker pick libmcgen.so (the cdylib built for the FFM harness), which leaves
 # the shim with an unsatisfied DT_NEEDED entry at runtime.
+# -Wl,-s strips debug info. The Rust static archive is built with debug symbols,
+# which makes the linked shim 6.5 MB; stripped it is 2.1 MB, and it is a release
+# artefact that a server loads on every start. The runtime dependencies are only
+# libm, libgcc_s and libc, so it stays portable.
 cc -shared -fPIC -O2 -Wall -Wextra \
   -I"$JDK/include" -I"$JDK/include/linux" \
+  -Wl,-s \
   -o "$OUT/libmcgenjni.so" \
   "$MOD/native/jni_shim.c" \
   "$ROOT/rust/target/release/libmcgen.a" \

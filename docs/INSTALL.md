@@ -7,7 +7,7 @@
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.257 (anything in the 21.1.x line should work) |
 | Java | 21 |
-| Architecture | 64-bit **Linux**. See [Other platforms](#other-platforms). |
+| Architecture | 64-bit **Linux**, x86-64, glibc **2.34+** (Ubuntu 22.04, Debian 12, RHEL 9 or newer). See [Other platforms](#other-platforms). |
 | Build tools | Only if you are building it yourself — see [BUILDING.md](BUILDING.md) |
 
 You do **not** need `--enable-preview` or any JVM flags. That is precisely why the mod
@@ -88,6 +88,18 @@ the startup self-test results are in the log either way.
 
 The mod did not load at all. Check `mods/` contains the jar and that the log mentions
 `mcgen` during NeoForge's mod loading.
+
+## About the glibc requirement
+
+`libmcgenjni.so` links only against `libm`, `libgcc_s` and `libc`. Its strongest
+versioned symbol requirement is **GLIBC_2.34**.
+
+It also carries *weak* references to `pidfd_spawnp` and `pidfd_getpid`, which are
+GLIBC_2.39. Those are weak on purpose: Rust's standard library probes for them at load
+time and falls back if they are absent, and this library never spawns a process anyway.
+Do not be alarmed if `objdump` reports 2.39 — check the binding column first.
+
+On a system older than glibc 2.34, build from source; see [BUILDING.md](BUILDING.md).
 
 ## Other platforms
 

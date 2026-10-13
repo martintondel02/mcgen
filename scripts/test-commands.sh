@@ -99,8 +99,28 @@ if grep -qaE 'Unknown or incomplete command|Unknown command' "$LOG"; then
 fi
 
 echo
-if grep -qa 'mcgen\] chunk' "$LOG" && grep -qaE 'positions agree \(100\.000%\)' "$LOG"; then
-  echo "PASS: /mcgen commands work, and the engine matched vanilla terrain exactly."
+if ! grep -qa 'mcgen\] chunk' "$LOG"; then
+  echo "FAIL: /mcgen chunk produced no output." >&2
+  exit 1
+fi
+
+# The engine implements the density layer only. Trees and carved cave air are placed
+# by stages that run afterwards, so 100% raw agreement is not the right bar and never
+# will be. What must hold is that the density layer's *own* decisions agree.
+# [.] rather than \. : the second grep is single-quoted, where a backslash is literal.
+AGREE="$(grep -aoE "density layer's own: [0-9]+[.][0-9]+%" "$LOG" | tail -1 | grep -oE '[0-9]+[.][0-9]+')"
+if [[ -z "$AGREE" ]]; then
+  echo "FAIL: could not find the density-layer agreement figure in the output." >&2
+  exit 1
+fi
+
+if awk -v a="$AGREE" 'BEGIN { exit !(a >= 99.9) }'; then
+  echo "PASS: every /mcgen command ran, and the engine agreed with live vanilla terrain"
+  echo "      on ${AGREE}% of the density layer's own decisions."
   exit 0
 fi
-echo "PARTIAL: commands ran; see the output above for what matched."
+
+echo "FAIL: density-layer agreement was only ${AGREE}%, expected at least 99.9%." >&2
+echo "      A mismatch spread evenly through the column, rather than clustered near the" >&2
+echo "      water and lava levels, is a real bug. Full output above." >&2
+exit 1
