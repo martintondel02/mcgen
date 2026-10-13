@@ -1167,7 +1167,7 @@ fails the check:
 ```
 
 `density_json` is the strongest of the seven: both sides parse the **same JSON
-file** — [`tools/oracle/cases/density.jsonl`](tools/oracle/cases/density.jsonl) —
+file** — [`tools/oracle/cases/density.jsonl`](../tools/oracle/cases/density.jsonl) —
 so it exercises the *parser* as well as the evaluator. It now carries 36 graphs. The corpus starts from
 vanilla's own serialisation of each node type (obtained via `density_encode`,
 which prints `DIRECT_CODEC.encodeStart(...)`), so the schema is authoritative
